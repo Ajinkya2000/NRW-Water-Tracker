@@ -5,6 +5,7 @@ const adminData = {
     location: [81.60574248420107, 21.239487688845408],
     rate: 20,
     parent: null,
+    contact: "7389026213",
   },
   id_2: {
     name: "Science College",
@@ -75,6 +76,7 @@ const adminData = {
     location: [81.61238534753156, 21.245497928116794],
     rate: 600,
     parent: "id_1",
+    contact: "8871352717",
   },
 };
 
@@ -101,12 +103,26 @@ const getIntermediateGraph = (adminData) => {
 
   return intermediateData;
 };
-
 const getColor = (ratio) => {
-  if (ratio >= 0.9) return "green";
-  if (ratio >= 0.75) return "yellow";
-  return "red";
+  if (ratio >= 0.9) return "#06FF00";
+  if (ratio >= 0.75) return "#FFE61B";
+  return "#FC4F4F";
 };
+const getThreat = (ratio) => {
+  if (ratio >= 0.9) return "LOW";
+  if (ratio >= 0.75) return "MEDIUM";
+  return "HIGH";
+};
+const getRatio = (parentObject) => {
+  const rateSent = parentObject.rate;
+  let rateReceived = 0;
+  for (const [childKey, childValue] of Object.entries(parentObject.children)) {
+    rateReceived += childValue;
+  }
+  const lossRatio = rateReceived / rateSent;
+  return lossRatio;
+};
+
 const getGraphConfig = (adminData, intermediateData) => {
   const graphConfig = {
     nodes: {},
@@ -149,7 +165,7 @@ console.log("intermeditate data", intermediateData);
 const graphConfig = getGraphConfig(adminData, intermediateData);
 
 graphConfig.size = {
-  consumer: 130,
+  consumer: 80,
   distributer: 180,
 };
 
@@ -173,57 +189,84 @@ const map = new mapboxgl.Map({
 
 // This implements `StyleImageInterface`
 // to draw a pulsing dot icon on the map.
-const pulsingDotDistributor = {
-  width: graphConfig.size.distributer,
-  height: graphConfig.size.distributer,
-  data: new Uint8Array(
-    graphConfig.size.distributer * graphConfig.size.distributer * 4
-  ),
+const pulsingDotDistributor = (lossRatio) => {
+  return {
+    width: graphConfig.size.distributer,
+    height: graphConfig.size.distributer,
+    rgbColorString: {
+      LOW: {
+        outer: "101, 193, 140",
+        inner: "19, 148, 135",
+      },
+      MEDIUM: {
+        outer: "255, 250, 77",
+        inner: "255, 250, 77",
+      },
+      HIGH: {
+        outer: "255, 114, 114",
+        inner: "242, 120, 159",
+      },
+    },
+    data: new Uint8Array(
+      graphConfig.size.distributer * graphConfig.size.distributer * 4
+    ),
 
-  // When the layer is added to the map,
-  // get the rendering context for the map canvas.
-  onAdd: function () {
-    const canvas = document.createElement("canvas");
-    canvas.width = this.width;
-    canvas.height = this.height;
-    this.context = canvas.getContext("2d");
-  },
+    // When the layer is added to the map,
+    // get the rendering context for the map canvas.
+    onAdd: function () {
+      const canvas = document.createElement("canvas");
+      canvas.width = this.width;
+      canvas.height = this.height;
+      this.context = canvas.getContext("2d");
+    },
 
-  // Call once before every frame where the icon will be used.
-  render: function () {
-    const duration = 1000;
-    const t = (performance.now() % duration) / duration;
+    // Call once before every frame where the icon will be used.
+    render: function () {
+      const threat = getThreat(lossRatio);
+      const duration = 1000;
+      const t = (performance.now() % duration) / duration;
 
-    const radius = (graphConfig.size.distributer / 2) * 0.3;
-    const outerRadius = (graphConfig.size.distributer / 2) * 0.7 * t + radius;
-    const context = this.context;
+      const radius = (graphConfig.size.distributer / 2) * 0.3;
+      const outerRadius = (graphConfig.size.distributer / 2) * 0.7 * t + radius;
+      const context = this.context;
 
-    // Draw the outer circle.
-    context.clearRect(0, 0, this.width, this.height);
-    context.beginPath();
-    context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
-    context.fillStyle = `rgba(255, 200, 200, ${1 - t})`;
-    context.fill();
+      if (threat === "MEDIUM" || threat === "HIGH") {
+        // Draw the outer circle.
+        context.clearRect(0, 0, this.width, this.height);
+        context.beginPath();
+        context.arc(
+          this.width / 2,
+          this.height / 2,
+          outerRadius,
+          0,
+          Math.PI * 2
+        );
+        context.fillStyle = `rgba(${this.rgbColorString[threat].outer}, ${
+          1 - t
+        })`;
+        context.fill();
+      }
 
-    // Draw the inner circle.
-    context.beginPath();
-    context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
-    context.fillStyle = "rgba(255, 100, 100, 1)";
-    context.strokeStyle = "white";
-    context.lineWidth = 2 + 4 * (1 - t);
-    context.fill();
-    context.stroke();
+      // Draw the inner circle.
+      context.beginPath();
+      context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
+      context.fillStyle = `rgba(${this.rgbColorString[threat].inner}, 1)`;
+      context.strokeStyle = "white";
+      context.lineWidth = 2 + 4 * (1 - t);
+      context.fill();
+      context.stroke();
 
-    // Update this image's data with data from the canvas.
-    this.data = context.getImageData(0, 0, this.width, this.height).data;
+      // Update this image's data with data from the canvas.
+      this.data = context.getImageData(0, 0, this.width, this.height).data;
 
-    // Continuously repaint the map, resulting
-    // in the smooth animation of the dot.
-    map.triggerRepaint();
+      // Continuously repaint the map, resulting
+      // in the smooth animation of the dot.
+      map.triggerRepaint();
 
-    // Return `true` to let the map know that the image was updated.
-    return true;
-  },
+      // Return `true` to let the map know that the image was updated.
+      return true;
+    },
+  };
 };
 
 const pulsingDotConsumer = {
@@ -251,17 +294,10 @@ const pulsingDotConsumer = {
     const outerRadius = (graphConfig.size.consumer / 2) * 0.7 * t + radius;
     const context = this.context;
 
-    // Draw the outer circle.
-    context.clearRect(0, 0, this.width, this.height);
-    context.beginPath();
-    context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
-    context.fillStyle = `rgba(67, 156, 239, ${1 - t})`;
-    context.fill();
-
     // Draw the inner circle.
     context.beginPath();
     context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
-    context.fillStyle = "rgba(67, 156, 239, 1)";
+    context.fillStyle = "rgba(8, 69, 148, 1)";
     context.strokeStyle = "white";
     context.lineWidth = 2 + 4 * (1 - t);
     context.fill();
@@ -293,7 +329,6 @@ const addEdgeToGraph = async (myMap, fromLocation, toLocation, color) => {
   result.routes[0].geometry.coordinates.forEach((location) =>
     intermediatePoints.push(location)
   );
-  setTimeout(() => {}, 300);
 
   myMap.addSource(uniqueId, {
     type: "geojson",
@@ -320,7 +355,7 @@ const addEdgeToGraph = async (myMap, fromLocation, toLocation, color) => {
     },
   });
 };
-const addPointToMap = (myMap, location, type, title) => {
+const addPointToMap = (myMap, location, type, title, key, intermediateData) => {
   const uniqueId = `POINT - ${location}`;
   myMap.addSource(uniqueId, {
     type: "geojson",
@@ -340,24 +375,54 @@ const addPointToMap = (myMap, location, type, title) => {
       ],
     },
   });
-  const iconImage =
-    type === "CONSUMER" ? "pulsing-dot-consumer" : "pulsing-dot-distributor";
-  myMap.addLayer({
-    id: uniqueId,
-    type: "symbol",
-    source: uniqueId,
-    layout: {
-      "icon-image": iconImage,
-      "text-field": ["get", "title"],
-      "text-offset": [0, 1.25],
-      "text-anchor": "top",
-      "text-size": 10,
-    },
-  });
+
+  if (type === "CONSUMER") {
+    myMap.addLayer({
+      id: uniqueId,
+      type: "symbol",
+      source: uniqueId,
+      layout: {
+        "icon-image": "pulsing-dot-consumer",
+        "text-field": ["get", "title"],
+        "text-offset": [0, 1.25],
+        "text-anchor": "top",
+        "text-size": 10,
+        "icon-allow-overlap": true,
+        //'text-allow-overlap' :true,
+        "icon-ignore-placement": true,
+        //'text-ignore-placement':true
+      },
+    });
+  } else {
+    const ratio = getRatio(intermediateData[key]);
+    const threat = getThreat(ratio);
+    myMap.addLayer({
+      id: uniqueId,
+      type: "symbol",
+      source: uniqueId,
+      layout: {
+        "icon-image": `pulsing-dot-distributor-${threat}`,
+        "text-field": ["get", "title"],
+        "text-offset": [0, 1.25],
+        "text-anchor": "top",
+        "text-size": 10,
+        "icon-allow-overlap": true,
+        //'text-allow-overlap' :true,
+        "icon-ignore-placement": true,
+        //'text-ignore-placement':true
+      },
+    });
+  }
 };
 
 map.on("load", () => {
-  map.addImage("pulsing-dot-distributor", pulsingDotDistributor, {
+  map.addImage("pulsing-dot-distributor-LOW", pulsingDotDistributor(0.9), {
+    pixelRatio: 2,
+  });
+  map.addImage("pulsing-dot-distributor-MEDIUM", pulsingDotDistributor(0.75), {
+    pixelRatio: 2,
+  });
+  map.addImage("pulsing-dot-distributor-HIGH", pulsingDotDistributor(0), {
     pixelRatio: 2,
   });
   map.addImage("pulsing-dot-consumer", pulsingDotConsumer, {
@@ -365,7 +430,7 @@ map.on("load", () => {
   });
   for (const [key, value] of Object.entries(graphConfig.nodes)) {
     const { location, type, name } = value;
-    addPointToMap(map, location, type, name);
+    addPointToMap(map, location, type, name, key, intermediateData);
   }
   graphConfig.edges.forEach((edge) => {
     const { from, to, color } = edge;
