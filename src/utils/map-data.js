@@ -118,6 +118,7 @@ export const addPointToMap = (
   location,
   type,
   title,
+  intermediateDataState,
   showSidebar,
   setNewCenter
 ) => {
@@ -140,26 +141,65 @@ export const addPointToMap = (
       ],
     },
   });
-  const iconImage =
-    type === "CONSUMER" ? "pulsing-dot-consumer" : "pulsing-dot-distributor";
 
-  myMap.addLayer({
-    id: uniqueId,
-    type: "symbol",
-    source: uniqueId,
-    layout: {
-      "icon-image": iconImage,
-      "text-field": ["get", "title"],
-      "text-offset": [0, 1.25],
-      "text-anchor": "top",
-      "text-size": 10,
-    },
-  });
+  if (type === "CONSUMER") {
+    myMap.addLayer({
+      id: uniqueId,
+      type: "symbol",
+      source: uniqueId,
+      layout: {
+        "icon-image": "pulsing-dot-consumer",
+        "text-field": ["get", "title"],
+        "text-offset": [0, 1.25],
+        "text-anchor": "top",
+        "text-size": 10,
+        "icon-allow-overlap": true,
+        //'text-allow-overlap' :true,
+        "icon-ignore-placement": true,
+        //'text-ignore-placement':true
+      },
+    });
+  } else {
+    const ratio = getRatio(intermediateDataState[key]);
+    const threat = getThreat(ratio);
+    myMap.addLayer({
+      id: uniqueId,
+      type: "symbol",
+      source: uniqueId,
+      layout: {
+        "icon-image": `pulsing-dot-distributor-${threat}`,
+        "text-field": ["get", "title"],
+        "text-offset": [0, 1.25],
+        "text-anchor": "top",
+        "text-size": 10,
+        "icon-allow-overlap": true,
+        //'text-allow-overlap' :true,
+        "icon-ignore-placement": true,
+        //'text-ignore-placement':true
+      },
+    });
+  }
 
   myMap.on("click", uniqueId, (e) => {
     setNewCenter([location[0] + 0.005, location[1]]);
     showSidebar(key);
   });
+};
+
+const getThreat = (ratio) => {
+  if (ratio >= 0.9) return "LOW";
+  if (ratio >= 0.75) return "MEDIUM";
+  return "HIGH";
+};
+
+const getRatio = (parentObject) => {
+  const rateSent = parentObject.rate;
+  let rateReceived = 0;
+  for (const [, childValue] of Object.entries(parentObject.children)) {
+    rateReceived += childValue;
+  }
+  const lossRatio = rateReceived / rateSent;
+  return lossRatio;
 };
 
 // export const graphConfig = {
