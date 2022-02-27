@@ -1,150 +1,165 @@
 const getColor = (ratio) => {
-	if (ratio >= 0.9) return 'green';
-	if (ratio >= 0.75) return 'yellow';
-	return 'red';
+  if (ratio >= 0.9) return "green";
+  if (ratio >= 0.75) return "yellow";
+  return "red";
 };
 
 export const getIntermediateGraph = (adminData) => {
-	const intermediateData = {};
-	// make place for parents
-	for (const [key, value] of Object.entries(adminData)) {
-		const { type, rate } = value;
-		if (type === 'DISTRIBUTER') {
-			intermediateData[key] = {
-				rate,
-				children: {},
-			};
-		}
-	}
+  const intermediateData = {};
+  // make place for parents
+  for (const [key, value] of Object.entries(adminData)) {
+    const { type, rate } = value;
+    if (type === "DISTRIBUTER") {
+      intermediateData[key] = {
+        rate,
+        children: {},
+      };
+    }
+  }
 
-	// add children data
-	for (const [key, value] of Object.entries(adminData)) {
-		const { rate, parent } = value;
-		if (parent) {
-			intermediateData[parent].children[key] = rate;
-		}
-	}
+  // add children data
+  for (const [key, value] of Object.entries(adminData)) {
+    const { rate, parent } = value;
+    if (parent) {
+      intermediateData[parent].children[key] = rate;
+    }
+  }
 
-	return intermediateData;
+  return intermediateData;
 };
 
 export const getGraphConfig = (adminData, intermediateData) => {
-	const graphConfig = {
-		nodes: {},
-		edges: [],
-	};
-	for (const [key] of Object.entries(adminData)) {
-		const { name, type, location } = adminData[key];
-		graphConfig.nodes[key] = {
-			name,
-			type,
-			location,
-		};
-	}
+  const graphConfig = {
+    nodes: {},
+    edges: [],
+  };
+  for (const [key] of Object.entries(adminData)) {
+    const { name, type, location } = adminData[key];
+    graphConfig.nodes[key] = {
+      name,
+      type,
+      location,
+    };
+  }
 
-	for (const [parentKey, parentValue] of Object.entries(intermediateData)) {
-		const rateSent = parentValue.rate;
-		let rateReceived = 0;
-		for (const [, childValue] of Object.entries(parentValue.children)) {
-			rateReceived += childValue;
-		}
-		const lossRatio = rateReceived / rateSent;
-		console.log('loss = ', lossRatio, rateSent, rateReceived, 'parent = ', [
-			parentKey,
-			parentValue,
-		]);
+  for (const [parentKey, parentValue] of Object.entries(intermediateData)) {
+    const rateSent = parentValue.rate;
+    let rateReceived = 0;
+    for (const [, childValue] of Object.entries(parentValue.children)) {
+      rateReceived += childValue;
+    }
+    const lossRatio = rateReceived / rateSent;
+    // console.log("loss = ", lossRatio, rateSent, rateReceived, "parent = ", [
+    //   parentKey,
+    //   parentValue,
+    // ]);
 
-		for (const [childKey] of Object.entries(parentValue.children)) {
-			graphConfig.edges.push({
-				from: parentKey,
-				to: childKey,
-				color: getColor(lossRatio),
-			});
-		}
-	}
+    for (const [childKey] of Object.entries(parentValue.children)) {
+      graphConfig.edges.push({
+        from: parentKey,
+        to: childKey,
+        color: getColor(lossRatio),
+      });
+    }
+  }
 
-	return graphConfig;
+  return graphConfig;
 };
 
-export const addEdgeToGraph = (myMap, fromLocation, toLocation, color) => {
-	const uniqueId = `EDGE ${fromLocation} - ${toLocation}`;
+export const addEdgeToGraph = async (
+  myMap,
+  fromLocation,
+  toLocation,
+  color
+) => {
+  const uniqueId = `EDGE ${fromLocation} - ${toLocation}`;
+  var requestOptions = {
+    method: "GET",
+    redirect: "follow",
+  };
+  const url = `https://api.mapbox.com/directions/v5/mapbox/cycling/${fromLocation[0]},${fromLocation[1]};${toLocation[0]},${toLocation[1]}?access_token=${process.env.REACT_APP_MAPBOX_TOKEN}&geometries=geojson`;
+  const intermediatePoints = [];
+  const response = await fetch(url, requestOptions);
+  const result = await response.json();
+  result.routes[0].geometry.coordinates.forEach((location) =>
+    intermediatePoints.push(location)
+  );
+  setTimeout(() => {}, 300);
 
-	myMap.addSource(uniqueId, {
-		type: 'geojson',
-		data: {
-			type: 'Feature',
-			properties: {},
-			geometry: {
-				type: 'LineString',
-				coordinates: [fromLocation, toLocation],
-			},
-		},
-	});
-
-	myMap.addLayer({
-		id: uniqueId,
-		type: 'line',
-		source: uniqueId,
-		layout: {
-			'line-join': 'round',
-			'line-cap': 'round',
-		},
-		paint: {
-			'line-color': color,
-			'line-width': 3,
-		},
-	});
-
-	// console.log('added edge for', [fromLocation, toLocation]);
+  myMap.addSource(uniqueId, {
+    type: "geojson",
+    data: {
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "LineString",
+        coordinates: [...intermediatePoints, toLocation],
+      },
+    },
+  });
+  myMap.addLayer({
+    id: uniqueId,
+    type: "line",
+    source: uniqueId,
+    layout: {
+      "line-join": "round",
+      "line-cap": "round",
+    },
+    paint: {
+      "line-color": color,
+      "line-width": 3,
+    },
+  });
 };
 
 export const addPointToMap = (
-	myMap,
-	location,
-	type,
-	title,
-	showSidebar,
-	setNewCenter
+  myMap,
+  key,
+  location,
+  type,
+  title,
+  showSidebar,
+  setNewCenter
 ) => {
-	const uniqueId = `POINT - ${location}`;
-	myMap.addSource(uniqueId, {
-		type: 'geojson',
-		data: {
-			type: 'FeatureCollection',
-			features: [
-				{
-					type: 'Feature',
-					properties: {
-						title: title,
-					},
-					geometry: {
-						type: 'Point',
-						coordinates: location, // icon position [lng, lat]
-					},
-				},
-			],
-		},
-	});
-	const iconImage =
-		type === 'CONSUMER' ? 'pulsing-dot-consumer' : 'pulsing-dot-distributor';
+  const uniqueId = `POINT - ${location}`;
+  myMap.addSource(uniqueId, {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            title: title,
+          },
+          geometry: {
+            type: "Point",
+            coordinates: location, // icon position [lng, lat]
+          },
+        },
+      ],
+    },
+  });
+  const iconImage =
+    type === "CONSUMER" ? "pulsing-dot-consumer" : "pulsing-dot-distributor";
 
-	myMap.addLayer({
-		id: uniqueId,
-		type: 'symbol',
-		source: uniqueId,
-		layout: {
-			'icon-image': iconImage,
-			'text-field': ['get', 'title'],
-			'text-offset': [0, 1.25],
-			'text-anchor': 'top',
-			'text-size': 10,
-		},
-	});
+  myMap.addLayer({
+    id: uniqueId,
+    type: "symbol",
+    source: uniqueId,
+    layout: {
+      "icon-image": iconImage,
+      "text-field": ["get", "title"],
+      "text-offset": [0, 1.25],
+      "text-anchor": "top",
+      "text-size": 10,
+    },
+  });
 
-	myMap.on('click', uniqueId, (e) => {
-		setNewCenter([location[0] + 0.005, location[1]]);
-		showSidebar();
-	});
+  myMap.on("click", uniqueId, (e) => {
+    setNewCenter([location[0] + 0.005, location[1]]);
+    showSidebar(key);
+  });
 };
 
 // export const graphConfig = {
