@@ -12,7 +12,19 @@ const Details = ({
   closeSideBar,
   showDetails,
   showSidebar,
+  name,
+  threshold,
+  averagePerDay,
+  currentConsumed,
+  revenueMonthly,
+  nonRevenueMonthly,
+  keyId,
 }) => {
+  const data = [
+    { name: name, value: revenueMonthly, title: "Revenue Water" },
+    { name: name, value: nonRevenueMonthly, title: "Non Revenue Water" },
+  ];
+
   return (
     <div
       className={`detail--popup ${isSidebarOpen ? "show-sidebar" : ""}
@@ -21,7 +33,7 @@ const Details = ({
       {isSidebarOpen && (
         <div className="card detail-card">
           <header className="card-header">
-            <p className="card-header-title">Main Supply</p>
+            <p className="card-header-title">{name}</p>
             <button
               className="card-header-icon"
               aria-label="close"
@@ -34,24 +46,38 @@ const Details = ({
           </header>
           <div className="card-content">
             <div className="content">
-              <CustomPieChart />
+              <CustomPieChart data={data} />
             </div>
             <div className="content">
               <p>
-                Supplying to{" "}
-                <span className="has-text-weight-semibold">5 wards</span>
+                Daily Threshold:{" "}
+                <span className="has-text-weight-semibold">
+                  {threshold} kLtrs
+                </span>
               </p>
               <p>
-                Total Water Supplied:{" "}
-                <span className="has-text-weight-semibold">5000 Ltr</span>
+                Daily Average Consumption:{" "}
+                <span className="has-text-weight-semibold">
+                  {averagePerDay} kLtrs
+                </span>
               </p>
               <p>
-                Revenue Water:{" "}
-                <span className="has-text-weight-semibold">4000 Ltr</span>
+                Today's Consumption:{" "}
+                <span className="has-text-weight-semibold">
+                  {currentConsumed} kLtrs
+                </span>
               </p>
               <p>
-                Non Revenvue Water:{" "}
-                <span className="has-text-weight-semibold">1000 Ltr</span>
+                Revenue Water (Monthly):{" "}
+                <span className="has-text-weight-semibold">
+                  {revenueMonthly} kLtrs
+                </span>
+              </p>
+              <p>
+                Non Revenvue Water (Monthly):{" "}
+                <span className="has-text-weight-semibold">
+                  {nonRevenueMonthly} kLtrs
+                </span>
               </p>
             </div>
           </div>
@@ -65,7 +91,7 @@ const Details = ({
       {isDetailsOpen && (
         <div className="card detail-card">
           <header className="card-header">
-            <p className="card-header-title">Main Supply</p>
+            <p className="card-header-title">{name}</p>
             <button
               className="card-header-icon"
               aria-label="close"
@@ -78,11 +104,11 @@ const Details = ({
           </header>
           <div className="card-content details-background">
             <div className="tile is-ancestor">
-              <div className="tile is-parent is-8">
+              <div className="tile is-parent is-7">
                 <article className="tile is-child box">
                   <p className="title">Monthly Analysis</p>
                   <p className="subtitle has-text-grey is-size-6">
-                    Monthly non Nevenue Water Analysis
+                    Monthly Non Revenue Water (NRW) Analysis Report
                   </p>
                   <div className="content">
                     <CustomLineChart />
@@ -91,24 +117,9 @@ const Details = ({
               </div>
               <div className="tile is-parent">
                 <article className="tile is-child box">
-                  <p className="title">Details</p>
+                  <p className="title">Water Revenue Details</p>
                   <div className="content">
-                    <p>
-                      Supplying to{" "}
-                      <span className="has-text-weight-semibold">5 wards</span>
-                    </p>
-                    <p>
-                      Total Water Supplied:{" "}
-                      <span className="has-text-weight-semibold">5000 Ltr</span>
-                    </p>
-                    <p>
-                      Revenue Water:{" "}
-                      <span className="has-text-weight-semibold">4000 Ltr</span>
-                    </p>
-                    <p>
-                      Non Revenvue Water:{" "}
-                      <span className="has-text-weight-semibold">1000 Ltr</span>
-                    </p>
+                    <CustomPieChart data={data} />
                   </div>
                 </article>
               </div>
@@ -116,15 +127,47 @@ const Details = ({
             <div className="tile is-ancestor">
               <div className="tile is-parent">
                 <article className="tile is-child box">
-                  <p className="title">Water Revenue Details</p>
+                  <p className="title">Details</p>
                   <div className="content">
-                    <CustomPieChart />
+                    <p>
+                      Daily Threshold:{" "}
+                      <span className="has-text-weight-semibold">
+                        {threshold} Ltrs
+                      </span>
+                    </p>
+                    <p>
+                      Daily Average Consumption:{" "}
+                      <span className="has-text-weight-semibold">
+                        {averagePerDay} Ltrs
+                      </span>
+                    </p>
+                    <p>
+                      Today's Consumption:{" "}
+                      <span className="has-text-weight-semibold">
+                        {currentConsumed} Ltrs
+                      </span>
+                    </p>
+                    <p>
+                      Revenue Water (Monthly):{" "}
+                      <span className="has-text-weight-semibold">
+                        {revenueMonthly} Ltrs
+                      </span>
+                    </p>
+                    <p>
+                      Non Revenvue Water (Monthly):{" "}
+                      <span className="has-text-weight-semibold">
+                        {nonRevenueMonthly} Ltrs
+                      </span>
+                    </p>
                   </div>
                 </article>
               </div>
               <div className="tile is-parent is-8">
                 <article className="tile is-child box">
-                  <p className="title">Bar Graph</p>
+                  <p className="title">Distribution Analysis</p>
+                  <p className="subtitle has-text-grey is-size-6">
+                    Distributor-wise Water Revenue Analysis Report
+                  </p>
                   <div className="content">
                     <CustomBarChart />
                   </div>
@@ -133,7 +176,10 @@ const Details = ({
             </div>
           </div>
           <footer className="card-footer">
-            <button onClick={showSidebar} className="button card-footer-item">
+            <button
+              onClick={() => showSidebar(keyId)}
+              className="button card-footer-item"
+            >
               Overview
             </button>
           </footer>
